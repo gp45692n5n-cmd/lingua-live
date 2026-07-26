@@ -1,0 +1,7 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20
+faster-whisper==1.2.0
+huggingface-hub==0.36.0
+deep-translator==1.11.4
+opencc-python-reimplemented==0.1.7

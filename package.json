@@ -1,0 +1,39 @@
+{
+  "name": "realtime-caption-translator",
+  "version": "0.6.0",
+  "description": "GPU-accelerated real-time multilingual captions and translation for Windows",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "node node_modules/vite/bin/vite.js --host 127.0.0.1",
+    "dev:electron": "npm run build && node node_modules/electron/cli.js .",
+    "dev:web": "node node_modules/vite/bin/vite.js --host 127.0.0.1",
+    "build": "node node_modules/typescript/bin/tsc -b && node node_modules/vite/bin/vite.js build && node node_modules/typescript/bin/tsc -p electron/tsconfig.json",
+    "check": "npm run build",
+    "start": "node node_modules/electron/cli.js ."
+  },
+  "keywords": [
+    "captions",
+    "translation",
+    "whisper",
+    "electron",
+    "cuda",
+    "accessibility"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^43.2.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.5"
+  }
+}

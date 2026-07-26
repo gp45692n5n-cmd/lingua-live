@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a reproducible Lingua Live problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Include exact steps and the expected behavior.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Windows version
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: GPU and VRAM
+      placeholder: NVIDIA RTX 5060 Ti, 16GB
+  - type: input
+    attributes:
+      label: ASR and translation models
+  - type: textarea
+    attributes:
+      label: Logs and latency
+      description: Remove credentials and private transcript content before posting.
