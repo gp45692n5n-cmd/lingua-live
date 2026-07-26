@@ -38,15 +38,21 @@ Lingua Live 是一款 Windows 实时字幕工具。它捕获电脑正在播放�
 ## 从源码运行
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/gp45692n5n-cmd/lingua-live.git
 cd lingua-live
-npm install
-powershell -ExecutionPolicy Bypass -File backend/setup.ps1 -Gpu
-npm run build
-npm start
+npm.cmd install
+npm.cmd run setup:backend:gpu
+npm.cmd run build
+npm.cmd start
 ```
 
-没有 NVIDIA 显卡时去掉 `-Gpu`。识别模型会在首次启动时下载，模型、虚拟环境和构建产物不会提交到 Git。
+没有 NVIDIA 显卡时运行：
+
+```powershell
+npm.cmd run setup:backend
+```
+
+识别模型会在首次启动时下载，模型、虚拟环境和构建产物不会提交到 Git。如果 PowerShell 拦截 `npm`，请使用 `npm.cmd`。
 
 本地翻译可安装 Ollama，并按电脑配置拉取模型：
 

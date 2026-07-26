@@ -40,18 +40,18 @@ See [Model Guide](docs/MODEL_GUIDE.md) for detailed tradeoffs.
 ## Quick Start
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/gp45692n5n-cmd/lingua-live.git
 cd lingua-live
-npm install
-powershell -ExecutionPolicy Bypass -File backend/setup.ps1 -Gpu
-npm run build
-npm start
+npm.cmd install
+npm.cmd run setup:backend:gpu
+npm.cmd run build
+npm.cmd start
 ```
 
 Without an NVIDIA GPU, omit `-Gpu`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File backend/setup.ps1
+npm.cmd run setup:backend
 ```
 
 The ASR model downloads on first launch. Models, virtual environments and build output are excluded from Git.
@@ -101,8 +101,10 @@ translate: true | false
 ```powershell
 npm ci
 npm run build
-backend\.venv\Scripts\python.exe -m py_compile backend/server.py
+npm run check:backend
 ```
+
+If PowerShell blocks `npm`, use `npm.cmd` for the same commands.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes. Security reports should follow [SECURITY.md](SECURITY.md).
 

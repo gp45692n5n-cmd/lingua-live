@@ -1,16 +1,31 @@
 {
-  "name": "realtime-caption-translator",
+  "name": "lingua-live",
   "version": "0.6.0",
   "description": "GPU-accelerated real-time multilingual captions and translation for Windows",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "dist-electron/main.js",
+  "homepage": "https://github.com/gp45692n5n-cmd/lingua-live#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gp45692n5n-cmd/lingua-live.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gp45692n5n-cmd/lingua-live/issues"
+  },
+  "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node node_modules/vite/bin/vite.js --host 127.0.0.1",
     "dev:electron": "npm run build && node node_modules/electron/cli.js .",
     "dev:web": "node node_modules/vite/bin/vite.js --host 127.0.0.1",
     "build": "node node_modules/typescript/bin/tsc -b && node node_modules/vite/bin/vite.js build && node node_modules/typescript/bin/tsc -p electron/tsconfig.json",
     "check": "npm run build",
+    "check:backend": "powershell -ExecutionPolicy Bypass -File backend/check.ps1",
+    "setup:backend": "powershell -ExecutionPolicy Bypass -File backend/setup.ps1",
+    "setup:backend:gpu": "powershell -ExecutionPolicy Bypass -File backend/setup.ps1 -Gpu",
     "start": "node node_modules/electron/cli.js ."
   },
   "keywords": [

@@ -22,4 +22,4 @@ jobs:
           python-version: "3.12"
       - run: npm ci
       - run: npm run build
-      - run: python -m py_compile backend/server.py
+      - run: npm run check:backend
