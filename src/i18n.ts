@@ -95,6 +95,21 @@ const en = {
   backendError: "Model failed to load",
   backendFirstLoad: "Service ready · {model} loads on first recognition",
   uiLanguage: "Interface language",
+  movieSubtitles: "Movie subtitle file",
+  movieSubtitlesHint: "Generate a replacement SRT for one media file",
+  chooseMovie: "Choose media",
+  selectedMovie: "Selected file",
+  noMovieSelected: "No movie selected",
+  selectMovieFirst: "Choose a movie or audio file first",
+  movieFileSelected: "Selected {file}",
+  replaceOriginal: "Translation only",
+  generateSrt: "Generate SRT",
+  generatingSubtitles: "Generating subtitles",
+  subtitleGenerated: "Generated {count} subtitle lines",
+  subtitleSaved: "Saved {count} subtitle lines to {path}",
+  subtitleFailed: "Subtitle generation failed",
+  subtitleSummary: "{count} lines · detected {language} · {seconds}s processing",
+  saveAgain: "Save subtitle again",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -128,6 +143,13 @@ const zh: Partial<Record<MessageKey, string>> = {
   backendStarting: "正在启动本地识别服务", backendDownloading: "正在下载 {model}（{progress}%）", backendLoading: "正在加载 {model}",
   backendReadyLocal: "{model} 已加载 · {device} · 本地翻译", backendReadyOnline: "{model} 已加载 · {device} · 在线翻译",
   backendError: "模型加载失败", backendFirstLoad: "服务已就绪，首次识别时加载 {model}", uiLanguage: "界面语言",
+  movieSubtitles: "电影字幕文件", movieSubtitlesHint: "为单个视频生成替代原字幕的 SRT",
+  chooseMovie: "选择视频", selectedMovie: "已选文件", noMovieSelected: "还没有选择电影文件",
+  selectMovieFirst: "请先选择电影或音频文件", movieFileSelected: "已选择 {file}",
+  replaceOriginal: "仅译文替代", generateSrt: "生成 SRT", generatingSubtitles: "正在生成字幕",
+  subtitleGenerated: "已生成 {count} 条字幕", subtitleSaved: "已保存 {count} 条字幕到 {path}",
+  subtitleFailed: "字幕生成失败", subtitleSummary: "{count} 条 · 检测为 {language} · 处理 {seconds}s",
+  saveAgain: "再次保存字幕",
 };
 
 const ja: Partial<Record<MessageKey, string>> = {

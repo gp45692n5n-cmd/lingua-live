@@ -13,6 +13,7 @@ Lingua Live is a Windows desktop app that captures system playback audio, transc
 - Local Ollama translation, Google fallback and OpenAI-compatible cloud endpoints
 - Simplified Chinese normalization with OpenCC
 - Translation-only, source-only and bilingual caption modes
+- Movie-file subtitle generation with translation-only or bilingual `.srt` export
 - Transparent movable overlay with configurable font, size, colors and outline
 - UI languages: English, Simplified Chinese, Japanese, Korean, French and German
 - Automatic hardware detection and model recommendations
@@ -66,6 +67,17 @@ ollama pull qwen2.5:7b
 
 If Ollama is unavailable, Lingua Live falls back to online translation. An OpenAI-compatible endpoint can be configured with the variables in [.env.example](.env.example).
 
+## Movie Subtitle Mode
+
+Use the movie subtitle panel when you want to translate a whole file instead of watching with live captions:
+
+1. Choose a video or audio file.
+2. Select translation-only mode to create a replacement subtitle, or bilingual mode to keep source text above the translation.
+3. Generate and save the `.srt` file.
+4. Load the generated `.srt` in the video player instead of the original soft subtitle track.
+
+This replaces soft subtitles at playback time. It does not remove subtitles burned into the picture; hard-subtitle covering and video re-encoding are planned future steps.
+
 ## API
 
 Health:
@@ -87,13 +99,28 @@ previousText: <optional short context>
 translate: true | false
 ```
 
+Full-file subtitle request:
+
+```text
+POST http://127.0.0.1:8787/v1/subtitles
+Content-Type: multipart/form-data
+X-Lingua-Desktop-Token: <desktop session token>
+
+mediaPath: C:\path\to\movie.mkv
+sourceLanguage: auto | zh | yue | zh-sichuan | ja | en | ko | fr | de
+targetLanguage: zh | en | ja | ko | fr | de
+displayMode: translation | bilingual | source
+```
+
+For safety, path-based subtitle generation requires a desktop-session token created by the Electron app.
+
 ## Current Limitations
 
 - Audio is processed in short chunks rather than token-level streaming.
 - One-second chunks are faster but incomplete phrases can reduce translation quality.
 - Cantonese and Sichuan dialect currently use Whisper Chinese plus prompts; dedicated dialect routing is planned.
 - The app captures the system mix, not an individual browser tab or application.
-- Hard-subtitle removal and visual font matching are not implemented yet.
+- Movie subtitle mode exports replacement subtitle files; hard-subtitle removal, visual font matching and video burn-in are not implemented yet.
 - The repository currently provides a source build; a signed Windows installer is planned.
 
 ## Development

@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld("desktopAPI", {
   startBackend: () => ipcRenderer.invoke("backend:start"),
   stopBackend: () => ipcRenderer.invoke("backend:stop"),
   getBackendStatus: () => ipcRenderer.invoke("backend:get-status"),
+  getDesktopToken: () => ipcRenderer.invoke("backend:get-desktop-token"),
+  selectMediaFile: () => ipcRenderer.invoke("file:select-media"),
+  saveSubtitleFile: (options) => ipcRenderer.invoke("file:save-subtitle", options),
   onBackendStatus: (listener) => {
     const handler = (_event, status) => listener(status);
     ipcRenderer.on("backend:status", handler);

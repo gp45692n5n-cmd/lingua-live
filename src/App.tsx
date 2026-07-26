@@ -6,8 +6,10 @@ import {
   CircleAlert,
   Copy,
   Cpu,
+  Download,
   Eye,
   EyeOff,
+  FileVideo,
   Globe2,
   Languages,
   LoaderCircle,
@@ -29,7 +31,7 @@ import { useSystemAudio } from "./hooks/useSystemAudio";
 import { languageLabel, localeOptions, translate } from "./i18n";
 import { loadSettings, saveSettings } from "./lib/settings";
 import { createTranslationEngine } from "./lib/translationEngine";
-import type { AppSettings, BackendStatus, CaptionResult, HardwareProfile, OverlayBounds, SubtitleStyle, UiLocale } from "./types";
+import type { AppSettings, BackendStatus, CaptionResult, HardwareProfile, OverlayBounds, SubtitleDisplayMode, SubtitleJobResult, SubtitleStyle, UiLocale } from "./types";
 
 const initialBackendStatus: BackendStatus = {
   state: "stopped",
@@ -61,6 +63,19 @@ function formatTime(timestamp: number, locale: UiLocale) {
   }).format(timestamp);
 }
 
+function defaultSubtitleName(fileName: string, targetLanguage: string, displayMode: SubtitleDisplayMode) {
+  const stem = fileName.replace(/\.[^.]+$/, "") || "movie";
+  const suffix = displayMode === "bilingual" ? "bilingual" : targetLanguage;
+  return `${stem}.${suffix}.srt`;
+}
+
+function defaultSubtitlePath(media: { path: string; name: string }, targetLanguage: string, displayMode: SubtitleDisplayMode) {
+  const separatorIndex = Math.max(media.path.lastIndexOf("\\"), media.path.lastIndexOf("/"));
+  const directory = separatorIndex >= 0 ? media.path.slice(0, separatorIndex) : "";
+  const fileName = defaultSubtitleName(media.name, targetLanguage, displayMode);
+  return directory ? `${directory}\\${fileName}` : fileName;
+}
+
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
   return (
     <label className="toggle-row">
@@ -80,6 +95,12 @@ export function App() {
   const [isPositioning, setIsPositioning] = useState(false);
   const [backendStatus, setBackendStatus] = useState<BackendStatus>(initialBackendStatus);
   const [hardwareProfile, setHardwareProfile] = useState<HardwareProfile | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<{ path: string; name: string } | null>(null);
+  const [subtitleMode, setSubtitleMode] = useState<SubtitleDisplayMode>("translation");
+  const [subtitleResult, setSubtitleResult] = useState<SubtitleJobResult | null>(null);
+  const [subtitleStatus, setSubtitleStatus] = useState<string | null>(null);
+  const [subtitleError, setSubtitleError] = useState<string | null>(null);
+  const [isGeneratingSubtitle, setIsGeneratingSubtitle] = useState(false);
   const sequenceRef = useRef(0);
   const previousTextRef = useRef("");
   const processingRef = useRef(false);
@@ -206,6 +227,81 @@ export function App() {
     void navigator.clipboard.writeText(lines.join("\n"));
   };
 
+  const selectMediaFile = async () => {
+    if (!window.desktopAPI) {
+      setSubtitleError(t("desktopOnly"));
+      return;
+    }
+    const file = await window.desktopAPI.selectMediaFile();
+    if (!file) return;
+    setSelectedMedia(file);
+    setSubtitleResult(null);
+    setSubtitleError(null);
+    setSubtitleStatus(t("movieFileSelected", { file: file.name }));
+  };
+
+  const saveSubtitleResult = async (result: SubtitleJobResult) => {
+    if (!window.desktopAPI || !selectedMedia) return null;
+    return window.desktopAPI.saveSubtitleFile({
+      defaultPath: defaultSubtitlePath(selectedMedia, settings.targetLanguage, result.displayMode),
+      content: result.subtitleText,
+    });
+  };
+
+  const generateMovieSubtitle = async () => {
+    if (!window.desktopAPI) {
+      setSubtitleError(t("desktopOnly"));
+      return;
+    }
+    if (!selectedMedia) {
+      setSubtitleError(t("selectMovieFirst"));
+      return;
+    }
+
+    setIsGeneratingSubtitle(true);
+    setSubtitleError(null);
+    setSubtitleResult(null);
+    setSubtitleStatus(t("startingService"));
+
+    try {
+      const status = await window.desktopAPI.startBackend();
+      setBackendStatus(status);
+      if (status.state !== "ready") {
+        throw new Error(status.message);
+      }
+
+      setSubtitleStatus(t("generatingSubtitles"));
+      const formData = new FormData();
+      formData.append("mediaPath", selectedMedia.path);
+      formData.append("sourceLanguage", settings.sourceLanguage);
+      formData.append("targetLanguage", settings.targetLanguage);
+      formData.append("displayMode", subtitleMode);
+      const desktopToken = await window.desktopAPI.getDesktopToken();
+
+      const response = await fetch("http://127.0.0.1:8787/v1/subtitles", {
+        method: "POST",
+        headers: { "X-Lingua-Desktop-Token": desktopToken },
+        body: formData,
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(error?.detail ?? `Subtitle service returned ${response.status}`);
+      }
+
+      const result = await response.json() as SubtitleJobResult;
+      setSubtitleResult(result);
+      const savedPath = await saveSubtitleResult(result);
+      setSubtitleStatus(savedPath
+        ? t("subtitleSaved", { count: result.entryCount, path: savedPath })
+        : t("subtitleGenerated", { count: result.entryCount }));
+    } catch (reason) {
+      setSubtitleError(reason instanceof Error ? reason.message : t("subtitleFailed"));
+      setSubtitleStatus(null);
+    } finally {
+      setIsGeneratingSubtitle(false);
+    }
+  };
+
   const handleCaptureToggle = async () => {
     if (audio.isCapturing) {
       pendingChunkRef.current = null;
@@ -235,7 +331,7 @@ export function App() {
         <div className="brand">
           <span className="brand-mark"><Captions size={21} strokeWidth={2.2} /></span>
           <span className="brand-name">Lingua Live</span>
-          <span className="brand-version">MVP 0.6</span>
+          <span className="brand-version">MVP 0.7</span>
         </div>
         <div className="topbar-status">
           <label className="locale-select" title={t("uiLanguage")}>
@@ -433,6 +529,43 @@ export function App() {
                 {showTranslation && <strong style={{ color: settings.subtitleStyle.translationColor }}>{currentCaption?.translatedText ?? t("previewTranslation")}</strong>}
               </div>
             </div>
+          </div>
+
+          <div className="movie-subtitle-box">
+            <div className="movie-subtitle-header">
+              <div className="heading-group">
+                <FileVideo size={18} />
+                <div><h2>{t("movieSubtitles")}</h2><p>{t("movieSubtitlesHint")}</p></div>
+              </div>
+              <button className="secondary-action secondary-action--compact" onClick={() => void selectMediaFile()}>
+                <FileVideo size={16} />
+                {t("chooseMovie")}
+              </button>
+            </div>
+
+            <div className="movie-subtitle-controls">
+              <div className="selected-file">
+                <span>{t("selectedMovie")}</span>
+                <strong title={selectedMedia?.path}>{selectedMedia?.name ?? t("noMovieSelected")}</strong>
+              </div>
+              <div className="segmented-control">
+                <button className={subtitleMode === "translation" ? "selected" : ""} onClick={() => setSubtitleMode("translation")}>{t("replaceOriginal")}</button>
+                <button className={subtitleMode === "bilingual" ? "selected" : ""} onClick={() => setSubtitleMode("bilingual")}>{t("bilingual")}</button>
+              </div>
+              <button className="primary-action" disabled={!selectedMedia || isGeneratingSubtitle} onClick={() => void generateMovieSubtitle()}>
+                {isGeneratingSubtitle ? <LoaderCircle className="spin" size={18} /> : <Download size={17} />}
+                {isGeneratingSubtitle ? t("generatingSubtitles") : t("generateSrt")}
+              </button>
+            </div>
+
+            {subtitleStatus && <div className="notice service-notice service-notice--ready"><span className="service-indicator" /><span>{subtitleStatus}</span></div>}
+            {subtitleError && <div className="error-banner movie-error"><CircleAlert size={17} /><span>{subtitleError}</span></div>}
+            {subtitleResult && (
+              <div className="subtitle-result">
+                <span>{t("subtitleSummary", { count: subtitleResult.entryCount, language: subtitleResult.detectedLanguage, seconds: Math.round(subtitleResult.durationMs / 1000) })}</span>
+                <button className="icon-button" title={t("saveAgain")} aria-label={t("saveAgain")} onClick={() => void saveSubtitleResult(subtitleResult).then((path) => path && setSubtitleStatus(t("subtitleSaved", { count: subtitleResult.entryCount, path })))}><Download size={16} /></button>
+              </div>
+            )}
           </div>
 
           <div className="history-header">

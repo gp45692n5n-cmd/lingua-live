@@ -30,7 +30,7 @@ os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 
 import ctranslate2
 from deep_translator import GoogleTranslator
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from faster_whisper import WhisperModel
 from opencc import OpenCC
@@ -54,6 +54,7 @@ LLM_MODEL = os.getenv("LINGUA_LLM_MODEL", "").strip()
 MODEL_SOURCE = os.getenv("LINGUA_MODEL_SOURCE", "modelscope").lower()
 MODEL_CACHE_ROOT = Path(os.getenv("LINGUA_MODEL_DIR", Path(__file__).parent / "models"))
 CPU_THREADS = int(os.getenv("LINGUA_CPU_THREADS", str(min(8, os.cpu_count() or 4))))
+DESKTOP_TOKEN = os.getenv("LINGUA_DESKTOP_TOKEN", "")
 
 MODELSCOPE_MODELS = {
     "small": {
@@ -140,7 +141,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Lingua Live Local Service", version="0.6.0", lifespan=lifespan)
+app = FastAPI(title="Lingua Live Local Service", version="0.7.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -601,6 +602,112 @@ def transcribe_file(
     return result
 
 
+def format_srt_timestamp(seconds: float) -> str:
+    milliseconds = max(0, round(seconds * 1000))
+    hours, remainder = divmod(milliseconds, 3_600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    secs, millis = divmod(remainder, 1_000)
+    return f"{hours:02}:{minutes:02}:{secs:02},{millis:03}"
+
+
+def clean_subtitle_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def render_srt(entries: list[dict[str, Any]], mode: str) -> str:
+    blocks: list[str] = []
+    for index, entry in enumerate(entries, start=1):
+        if mode == "bilingual":
+            lines = [entry["sourceText"], entry["translatedText"]]
+        elif mode == "source":
+            lines = [entry["sourceText"]]
+        else:
+            lines = [entry["translatedText"]]
+
+        text = "\n".join(line for line in lines if line)
+        if not text:
+            continue
+        blocks.append(
+            "\n".join(
+                [
+                    str(index),
+                    f"{format_srt_timestamp(entry['start'])} --> {format_srt_timestamp(entry['end'])}",
+                    text,
+                ],
+            ),
+        )
+    return "\n\n".join(blocks) + ("\n" if blocks else "")
+
+
+def generate_subtitle_file(
+    media_path: Path,
+    source_language: str,
+    target_language: str,
+    display_mode: str,
+) -> dict[str, Any]:
+    if not media_path.exists() or not media_path.is_file():
+        raise HTTPException(status_code=400, detail=f"媒体文件不存在：{media_path}")
+
+    requested_language = source_language if source_language in WHISPER_LANGUAGES else "auto"
+    should_translate = display_mode != "source"
+    started_at = time.perf_counter()
+    entries: list[dict[str, Any]] = []
+    previous_text = ""
+
+    with _inference_lock:
+        model = get_model()
+        segments_iterator, info = model.transcribe(
+            str(media_path),
+            language=WHISPER_LANGUAGES[requested_language],
+            initial_prompt=DIALECT_PROMPTS.get(requested_language),
+            beam_size=1,
+            best_of=1,
+            vad_filter=True,
+            vad_parameters={"min_silence_duration_ms": 260, "speech_pad_ms": 160},
+            condition_on_previous_text=True,
+            without_timestamps=False,
+        )
+        segments = list(segments_iterator)
+
+    detected_code = requested_language if requested_language in {"yue", "zh-sichuan"} else info.language
+    detected_code = detected_code if detected_code in LANGUAGE_LABELS else info.language
+    translation_warnings: list[str] = []
+
+    for segment in segments:
+        source_text = simplify_chinese(clean_subtitle_text(segment.text), detected_code)
+        if not source_text:
+            continue
+
+        translated_text = ""
+        if should_translate:
+            translated_text, warning = translate_text(source_text, detected_code, target_language, previous_text)
+            if warning:
+                translation_warnings.append(warning)
+
+        previous_text = source_text
+        entries.append(
+            {
+                "start": float(segment.start),
+                "end": max(float(segment.end), float(segment.start) + 0.2),
+                "sourceText": source_text,
+                "translatedText": translated_text,
+            },
+        )
+
+    subtitle_text = render_srt(entries, display_mode)
+    return {
+        "sourceFile": str(media_path),
+        "subtitleText": subtitle_text,
+        "format": "srt",
+        "displayMode": display_mode,
+        "entryCount": len(entries),
+        "detectedLanguage": LANGUAGE_LABELS.get(detected_code, detected_code or "未知"),
+        "detectedLanguageCode": detected_code,
+        "durationMs": round((time.perf_counter() - started_at) * 1000),
+        "translationWarnings": translation_warnings[:5],
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     return {
@@ -661,6 +768,37 @@ async def caption(
         await audio.close()
         if temporary_path:
             temporary_path.unlink(missing_ok=True)
+
+
+@app.post("/v1/subtitles")
+async def subtitles(
+    mediaPath: str = Form(...),
+    sourceLanguage: str = Form("auto"),
+    targetLanguage: str = Form("zh"),
+    displayMode: str = Form("translation"),
+    x_lingua_desktop_token: str = Header(""),
+) -> dict[str, Any]:
+    if not DESKTOP_TOKEN or x_lingua_desktop_token != DESKTOP_TOKEN:
+        raise HTTPException(status_code=403, detail="字幕文件生成只能由 Lingua Live 桌面端调用")
+    if sourceLanguage not in WHISPER_LANGUAGES:
+        raise HTTPException(status_code=400, detail=f"不支持的原始语言：{sourceLanguage}")
+    if targetLanguage not in TRANSLATION_CODES:
+        raise HTTPException(status_code=400, detail=f"不支持的目标语言：{targetLanguage}")
+    if displayMode not in {"translation", "source", "bilingual"}:
+        raise HTTPException(status_code=400, detail=f"不支持的字幕模式：{displayMode}")
+
+    try:
+        return await asyncio.to_thread(
+            generate_subtitle_file,
+            Path(mediaPath),
+            sourceLanguage,
+            targetLanguage,
+            displayMode,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"字幕生成失败：{exc}") from exc
 
 
 if __name__ == "__main__":

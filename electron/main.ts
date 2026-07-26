@@ -1,6 +1,8 @@
-import { app, BrowserWindow, desktopCapturer, ipcMain, screen, session } from "electron";
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, screen, session, type OpenDialogOptions, type SaveDialogOptions } from "electron";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
@@ -9,6 +11,7 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(currentDir, "..");
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const desktopToken = randomUUID();
 
 if (!hasSingleInstanceLock) {
   app.quit();
@@ -244,6 +247,7 @@ async function startBackendInternal(): Promise<BackendStatus> {
       HF_HUB_DISABLE_SYMLINKS_WARNING: "1",
       HF_HUB_DISABLE_XET: "1",
       LINGUA_MODEL: process.env.LINGUA_MODEL ?? hardwareProfile.recommendedAsr,
+      LINGUA_DESKTOP_TOKEN: desktopToken,
     },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -473,3 +477,34 @@ ipcMain.handle("app:hardware-profile", () => hardwareProfile);
 ipcMain.handle("backend:start", () => startBackend());
 ipcMain.handle("backend:stop", () => stopBackend());
 ipcMain.handle("backend:get-status", () => refreshBackendStatus());
+ipcMain.handle("backend:get-desktop-token", () => desktopToken);
+
+ipcMain.handle("file:select-media", async () => {
+  const options: OpenDialogOptions = {
+    title: "Select movie or audio file",
+    properties: ["openFile"],
+    filters: [
+      { name: "Media files", extensions: ["mp4", "mkv", "mov", "avi", "webm", "m4v", "mp3", "wav", "m4a", "flac", "aac", "ogg"] },
+      { name: "All files", extensions: ["*"] },
+    ],
+  };
+  const result = mainWindow ? await dialog.showOpenDialog(mainWindow, options) : await dialog.showOpenDialog(options);
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const filePath = result.filePaths[0];
+  return { path: filePath, name: path.basename(filePath) };
+});
+
+ipcMain.handle("file:save-subtitle", async (_event, options: { defaultPath: string; content: string }) => {
+  const dialogOptions: SaveDialogOptions = {
+    title: "Save subtitle file",
+    defaultPath: options.defaultPath,
+    filters: [
+      { name: "SubRip subtitle", extensions: ["srt"] },
+      { name: "All files", extensions: ["*"] },
+    ],
+  };
+  const result = mainWindow ? await dialog.showSaveDialog(mainWindow, dialogOptions) : await dialog.showSaveDialog(dialogOptions);
+  if (result.canceled || !result.filePath) return null;
+  await writeFile(result.filePath, options.content, "utf8");
+  return result.filePath;
+});

@@ -1,6 +1,6 @@
 {
   "name": "lingua-live",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "GPU-accelerated real-time multilingual captions and translation for Windows",
   "private": false,
   "type": "module",

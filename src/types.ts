@@ -102,3 +102,15 @@ export interface ProcessContext {
 export interface TranslationEngine {
   processAudio(blob: Blob, context: ProcessContext): Promise<CaptionResult | null>;
 }
+
+export interface SubtitleJobResult {
+  sourceFile: string;
+  subtitleText: string;
+  format: "srt";
+  displayMode: SubtitleDisplayMode;
+  entryCount: number;
+  detectedLanguage: string;
+  detectedLanguageCode?: string;
+  durationMs: number;
+  translationWarnings?: string[];
+}

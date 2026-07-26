@@ -10,6 +10,9 @@ declare global {
       startBackend: () => Promise<BackendStatus>;
       stopBackend: () => Promise<BackendStatus>;
       getBackendStatus: () => Promise<BackendStatus>;
+      getDesktopToken: () => Promise<string>;
+      selectMediaFile: () => Promise<{ path: string; name: string } | null>;
+      saveSubtitleFile: (options: { defaultPath: string; content: string }) => Promise<string | null>;
       onBackendStatus: (listener: (status: BackendStatus) => void) => () => void;
       setOverlayVisible: (visible: boolean) => Promise<boolean>;
       setOverlayInteractive: (interactive: boolean) => Promise<boolean>;

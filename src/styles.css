@@ -377,6 +377,74 @@ select:focus-visible {
   flex: 0 0 auto;
 }
 
+.movie-subtitle-box {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+}
+
+.movie-subtitle-header,
+.movie-subtitle-controls,
+.subtitle-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.movie-subtitle-header { justify-content: space-between; }
+.movie-subtitle-header .heading-group { min-width: 0; }
+.movie-subtitle-header h2 { margin: 0; font-size: 13px; line-height: 18px; }
+.movie-subtitle-header p { margin: 2px 0 0; color: var(--muted); font-size: 11px; line-height: 15px; }
+.movie-subtitle-header svg { color: var(--green); }
+.movie-subtitle-controls { display: grid; grid-template-columns: minmax(0, 1fr) 180px auto; }
+
+.selected-file {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.selected-file span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.selected-file strong {
+  color: var(--ink);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.secondary-action--compact {
+  width: auto;
+  height: 34px;
+  margin-top: 0;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.movie-subtitle-box .primary-action { height: 36px; white-space: nowrap; }
+.movie-subtitle-box .notice { margin: 0; }
+.movie-error { margin: 0; }
+
+.subtitle-result {
+  justify-content: space-between;
+  padding: 9px 11px;
+  color: #4d574e;
+  background: #ffffff;
+  border: 1px solid #e2e6de;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
 .preview-toolbar {
   height: 35px;
   display: flex;
@@ -659,6 +727,8 @@ select:focus-visible {
   .video-preview { height: 250px; }
   .statusbar span:nth-child(2) { display: none; }
   .statusbar { grid-template-columns: 1fr 1fr; }
+  .movie-subtitle-controls { grid-template-columns: 1fr; }
+  .movie-subtitle-header { align-items: flex-start; }
 }
 
 @media (max-width: 560px) {
@@ -673,4 +743,6 @@ select:focus-visible {
   .video-preview { height: 210px; }
   .statusbar span:last-child { display: none; }
   .statusbar { grid-template-columns: 1fr; }
+  .movie-subtitle-header { display: grid; }
+  .movie-subtitle-header .secondary-action { width: 100%; }
 }
